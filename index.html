@@ -1,0 +1,204 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <style>
+    body {
+    margin: 0px;
+    padding: 0px;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="myCanvas" width="500" height="250"></canvas>
+    <script>
+      var canvas = document.getElementById('myCanvas');
+      canvas.addEventListener('click', clicked);
+      var context = canvas.getContext('2d');
+      var timestep = 25;
+      var eatrate = 0.01;
+      var radiusLowThreshold = 0.5;
+      
+      var timelast = Date.now();
+      var timenow = timelast;
+      context.rect(0,0,canvas.width,canvas.height);
+      context.stroke();
+      context.fill();
+
+      var ball1 = {
+        x: 100, y: 150, vx: 0, vy: 0, radius: 50.1, type: 'player'
+      }
+      var ball2 = {
+        x: 200, y: 190, vx: 0, vy: 0, radius: 40.2, type: 'opponent'
+      }
+      var ball3 = {
+        x: 300, y: 190, vx: 0, vy: 0, radius: 55.2, type: 'opponent'
+      }
+      var balls = [];
+      balls.push(ball1);
+      balls.push(ball2);
+      balls.push(ball3);
+      
+      var ballsToAdd = [];
+      
+      drawAllBalls();
+      
+      // Temporary game loop
+      setInterval(step, timestep);
+      var running = false;
+      function step() {
+        if (running) return;
+        var dt = getTimediff();
+        // Add new balls
+        while (ballsToAdd.length) 
+          balls.push(ballsToAdd.pop());
+        
+        // Move balls
+        for (i = 0; i < balls.length; i++) {progressBall(balls[i], dt);}
+        // Bounce off walls
+        for (i = 0; i < balls.length; i++) {wallBounce(balls[i]);}
+        
+        // Check ball collisions
+        for (i = 0; i < balls.length - 1; i++) {
+          for (j = i + 1; j < balls.length; j++) {
+            if (balls[i].radius <= radiusLowThreshold || balls[j].radius <= radiusLowThreshold ) continue;
+            var dist2 = ballDistanceSquared(balls[i], balls[j]);
+            radiusSum = balls[i].radius + balls[j].radius;
+            if (dist2 < radiusSum * radiusSum) {
+              ballCollided(balls[i], balls[j], radiusSum - Math.sqrt(dist2));
+              ballCollided(balls[j], balls[i], radiusSum - Math.sqrt(dist2));
+            }
+          }
+        }
+        
+        drawSpace(context, canvas);
+        drawAllBalls();
+        
+        running = false;
+      }
+      function clicked(event) {
+        var xm = event.clientX;
+        var ym = event.clientY;
+        
+        if (distanceSquared(xm, ball1.x, ym, ball1.y) < ball1.radius*ball1.radius) return;
+        var xDelta = xm - ball1.x;
+        var yDelta = ym - ball1.y;
+        var distanceFromBall = Math.sqrt(distanceSquared(xDelta, 0, yDelta, 0));
+        var angle = Math.atan2(yDelta,xDelta);
+        // Create new ball
+        var newRadius = ball1.radius/10;
+        balls.push({
+          x: ball1.x + Math.cos(angle)*(ball1.radius + newRadius*2), 
+          y: ball1.y + Math.sin(angle)*(ball1.radius + newRadius*2), 
+          vx: xDelta/distanceFromBall*75,
+          vy: yDelta/distanceFromBall*75,
+          radius: newRadius,
+          type: 'opponent'
+          });
+          
+        // Change momentum of ball
+        ball1.vx -= xDelta/ball1.radius*10;
+        ball1.vy -= yDelta/ball1.radius*10;
+        
+      }
+      function ballCollided(ballMe, ballOther, overlap) {
+        if (overlap <= 0) console.log('ballCollided has negative overlap');
+        var growth = ballMe.radius > ballOther.radius ? 1 : -1;
+        var radiusRatio = ballOther.radius / (ballMe.radius + ballOther.radius);
+        ballMe.radius += growth * radiusRatio * overlap;
+        var xDelta = ballMe.x - ballOther.x;
+        var yDelta = ballMe.y - ballOther.y;
+        var distance = Math.sqrt(ballDistanceSquared(ballMe, ballOther));
+        ballMe.vx *= (1-0.99*overlap/ballMe.radius); //xDelta/distance*(1-radiusRatio);
+        ballMe.vy *= (1-0.99*overlap/ballMe.radius);// yDelta/distance*(1-radiusRatio);
+        
+      }
+      function ballDistanceSquared(b1, b2) {
+        return (b1.x - b2.x)*(b1.x - b2.x) + (b1.y - b2.y)*(b1.y - b2.y);
+      }
+      function distanceSquared(x1, x2, y1, y2) {
+        return (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2);
+      }
+      
+      function wallBounce(ball) {
+        // Top wall
+        if (ball.radius <= radiusLowThreshold) return;
+        if (ball.y - ball.radius < 0 && ball.vy < 0) {
+          //ball.y += (ball.radius - ball.y);
+          //ball.vy *= -1;
+          ball.y  = ball.radius - (ball.y - ball.radius);
+          ball.vy = -ball.vy;
+        }
+        // Bottom wall
+        else if (ball.y + ball.radius > canvas.height) {
+          //ball.y -= (ball.radius + ball.y - canvas.height);
+          //ball.vy *= -1;
+          ball.y = canvas.height - ball.radius - (ball.y + ball.radius - canvas.height);
+          ball.vy *= -1;
+          }
+        // Left wall
+        if (ball.x - ball.radius < 0 && ball.vx < 0) {
+          ball.x  = ball.radius - (ball.x - ball.radius);
+          ball.vx = -ball.vx;
+        }
+        // Right wall
+        else if (ball.x + ball.radius > canvas.width) {
+          //ball.x -= (ball.radius + ball.x - canvas.width);
+          ball.x = canvas.width - ball.radius - (ball.x + ball.radius - canvas.width);
+          ball.vx *= -1;
+        }
+      }
+      function printBall(ball) {
+        console.log(JSON.stringify(ball));
+      }
+      function printBalls() {
+          for (i = 0; i < balls.length; i++)
+            printBall(balls[i]);
+      }
+      function progressBall(ball, dt) {
+        if (ball.radius <= 0) return;
+        ball.x += dt * ball.vx / 1000;
+        ball.y += dt * ball.vy / 1000;
+      }
+      function getTimediff() {
+        timelast = timenow;
+        timenow = Date.now();
+        dt = timenow - timelast;
+        return dt;
+      }
+      function drawSpace(context, canvas) {
+        context.rect(0,0,canvas.width,canvas.height);
+        context.fillStyle = 'black';
+        context.fill();
+      }
+      function drawAllBalls() {
+        for (i = 0; i < balls.length; i++) {drawBallObject(context, balls[i]);}
+      }
+      function drawBallObject(context, ball) {
+        if (ball.radius <= radiusLowThreshold) return;     
+      drawBall(context, 'me', ball);
+      }
+      function drawBall(context, who, ball) {
+        
+        centerX = ball.x;
+        centerY = ball.y;
+        radius = ball.radius;
+        context.beginPath();
+        context.arc(centerX, centerY, radius, 0, 2 * Math.PI, false);
+        
+        if (ball.type === 'player')
+          context.fillStyle = 'yellow';
+        else {
+          if (ball.radius < ball1.radius)
+            context.fillStyle = 'green';
+          else
+          context.fillStyle = 'red'; 
+        } 
+          
+        context.fill();
+        //context.lineWidth = 5;
+        //context.strokeStyle = '#003300';
+        //context.stroke();
+      }
+    </script>
+  </body>
+</html>      
