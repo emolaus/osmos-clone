@@ -17,7 +17,6 @@
       var timestep = 25;
       var eatrate = 0.01;
       var radiusLowThreshold = 0.5;
-      var nrOfOpponents = 100;
       
       var timelast = Date.now();
       var timenow = timelast;
@@ -26,24 +25,33 @@
       context.fill();
 
       var ball1 = {
-        x: canvas.width/2, y: canvas.height/2, vx: 0, vy: 0, radius: 40.1, type: 'player'
+        x: canvas.width/2, y: canvas.height/2, vx: 0, vy: 0, radius: 10.1, type: 'player'
       }
       var balls = [ball1];
       console.log('Creating opponents');
       var maxIterations = 10000;
       var iterations = 0;
-      while (++iterations < maxIterations && balls.length <= nrOfOpponents) {
+      var currentSize = 2; // 2: large, 1: mid, 0: small
+      var nrOfLargeOpponents = 5;
+      var nrOfMiddleOpponents = 10;
+      var nrOfSmallOpponents = 40;
+      var opponentsGoalCount = [40, 10, 5];
+      var opponentsCount = [0,0,0];
+      while (++iterations < maxIterations) {
         console.log('Attempt nr ' + iterations + ', nr of balls so far: ' + balls.length);
-        var radius = 5 + Math.random()*50;
+        var radius;
+        if (currentSize == 0) radius = 1 + Math.random()*4;
+        if (currentSize == 1) radius = 5 + Math.random()*10;
+        if (currentSize == 2) radius = 50 + Math.random()*50;
+        
         var ball = {
           radius: radius,
           type: 'opponent',
           x: radius + 1 + Math.random()*(canvas.width - radius - 2),
           y: radius + 1 + Math.random()*(canvas.height - radius - 2), 
-          vx: 0, 
-          vy: 0
+          vx: -5 + Math.random()*10, 
+          vy: -5 + Math.random()*10
         }
-        console.log(ball);
         var noCollisions = true;
         for (i = 0; i < balls.length; i++) {
           
@@ -53,7 +61,13 @@
             break;
           }
         }
-        if (noCollisions) balls.push(ball);
+        if (noCollisions) {
+          balls.push(ball);
+          if (++opponentsCount[currentSize] >= opponentsGoalCount[currentSize]) {
+            currentSize--;
+          }
+          if (currentSize < 0) break;
+        }
       }
       
       var ballsToAdd = [];
