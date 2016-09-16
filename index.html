@@ -9,7 +9,7 @@
     </style>
   </head>
   <body>
-    <canvas id="myCanvas" width="500" height="250"></canvas>
+    <canvas id="myCanvas" width="900" height="450"></canvas>
     <script>
       var canvas = document.getElementById('myCanvas');
       canvas.addEventListener('click', clicked);
@@ -17,6 +17,7 @@
       var timestep = 25;
       var eatrate = 0.01;
       var radiusLowThreshold = 0.5;
+      var nrOfOpponents = 100;
       
       var timelast = Date.now();
       var timenow = timelast;
@@ -25,18 +26,35 @@
       context.fill();
 
       var ball1 = {
-        x: 100, y: 150, vx: 0, vy: 0, radius: 50.1, type: 'player'
+        x: canvas.width/2, y: canvas.height/2, vx: 0, vy: 0, radius: 40.1, type: 'player'
       }
-      var ball2 = {
-        x: 200, y: 190, vx: 0, vy: 0, radius: 40.2, type: 'opponent'
+      var balls = [ball1];
+      console.log('Creating opponents');
+      var maxIterations = 10000;
+      var iterations = 0;
+      while (++iterations < maxIterations && balls.length <= nrOfOpponents) {
+        console.log('Attempt nr ' + iterations + ', nr of balls so far: ' + balls.length);
+        var radius = 5 + Math.random()*50;
+        var ball = {
+          radius: radius,
+          type: 'opponent',
+          x: radius + 1 + Math.random()*(canvas.width - radius - 2),
+          y: radius + 1 + Math.random()*(canvas.height - radius - 2), 
+          vx: 0, 
+          vy: 0
+        }
+        console.log(ball);
+        var noCollisions = true;
+        for (i = 0; i < balls.length; i++) {
+          
+          console.log(ballOverlap(ball, balls[i]));
+          if (ballOverlap(ball, balls[i]) > 0.1) {
+            noCollisions = false;
+            break;
+          }
+        }
+        if (noCollisions) balls.push(ball);
       }
-      var ball3 = {
-        x: 300, y: 190, vx: 0, vy: 0, radius: 55.2, type: 'opponent'
-      }
-      var balls = [];
-      balls.push(ball1);
-      balls.push(ball2);
-      balls.push(ball3);
       
       var ballsToAdd = [];
       
@@ -100,6 +118,11 @@
         ball1.vy -= yDelta/ball1.radius*10;
         
       }
+      // Om de överlappar är overlap positiv
+      function ballOverlap(b1, b2) {
+        return (b1.radius + b2.radius) - Math.sqrt(ballDistanceSquared(b1, b2)); 
+      }
+      
       function ballCollided(ballMe, ballOther, overlap) {
         if (overlap <= 0) console.log('ballCollided has negative overlap');
         var growth = ballMe.radius > ballOther.radius ? 1 : -1;
